@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mesa Electrónica 3D Premium - Minimalista & Moderno</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap');
+
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #0b0c10;
+      color: #f1f5f9;
+      user-select: none;
+    }
+
+    #canvas-container {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+    }
+
+    /* Interface minimalista flotante */
+    .glass-card {
+      background: rgba(18, 20, 29, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 16px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    #ui-container {
+      position: absolute;
+      top: 24px;
+      left: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 10;
+    }
+
+    .btn {
+      color: #f8fafc;
+      padding: 12px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      background: rgba(30, 41, 59, 0.4);
+    }
+
+    .btn:hover {
+      background: rgba(51, 65, 85, 0.7);
+      border-color: rgba(255, 255, 255, 0.3);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+
+    .btn-xray {
+      border-color: rgba(56, 189, 248, 0.3);
+      color: #38bdf8;
+    }
+
+    .btn-xray:hover {
+      background: rgba(14, 165, 233, 0.2);
+      border-color: #38bdf8;
+    }
+
+    .btn-xray.active {
+      background: #0284c7;
+      color: #ffffff;
+      border-color: #38bdf8;
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+    }
+
+    .btn-earthquake {
+      border-color: rgba(244, 63, 94, 0.3);
+      color: #fb7185;
+    }
+
+    .btn-earthquake:hover {
+      background: rgba(225, 29, 72, 0.2);
+      border-color: #f43f5e;
+    }
+
+    .btn-earthquake.active {
+      background: #e11d48;
+      color: #ffffff;
+      animation: pulse 1.2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.6); }
+      70% { box-shadow: 0 0 0 14px rgba(225, 29, 72, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0); }
+    }
+
+    /* Leyenda de Materiales */
+    #materials-panel {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      padding: 20px 24px;
+      z-index: 10;
+      width: 320px;
+    }
+
+    #materials-panel h3 {
+      margin: 0 0 16px 0;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mat-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 12px;
+      font-size: 12px;
+      color: #94a3b8;
+      line-height: 1.4;
+    }
+
+    .mat-color-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 3px;
+      box-shadow: 0 0 10px currentColor;
+    }
+
+    .mat-label strong {
+      color: #f1f5f9;
+      font-weight: 600;
+    }
+
+    .rgb-corner-badge {
+      background: linear-gradient(135deg, #a855f7, #ec4899, #06b6d4);
+      color: white;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      display: inline-block;
+      box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3);
+    }
+
+    #info-panel {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 20px;
+      font-size: 12px;
+      color: #64748b;
+      letter-spacing: 0.5px;
+      pointer-events: none;
+    }
+  </style>
+
+  <!-- Three.js y OrbitControls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+  <!-- Controles -->
+  <div id="ui-container">
+    <button id="toggle-xray-btn" class="btn btn-xray glass-card">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+      <span id="xray-btn-text">Ver Ruta de Cables (Modo Rayos X)</span>
+    </button>
+    <button id="earthquake-btn" class="btn btn-earthquake glass-card">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+      <span>Simular Sismo</span>
+    </button>
+  </div>
+
+  <!-- Panel Informativo -->
+  <div id="materials-panel" class="glass-card">
+    <h3>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+      Especificaciones
+    </h3>
+
+    <div class="mat-item">
+      <div class="mat-color-dot" style="background: #2a221b; color: #85522e;"></div>
+      <div class="mat-label"><strong>Nogal Oscuro Mate:</strong> Tablero arquitectónico ultra limpio sin cables expuestos.</div>
+    </div>
+
+    <div class="mat-item">
+      <div class="mat-color-dot" style="background: #38bdf8; color: #38bdf8;"></div>
+      <div class="mat-label"><strong>Acero Grafito PTR:</strong> Patas minimalistas con canalización interna.</div>
+    </div>
+
+    <div class="mat-item">
+      <div class="mat-color-dot" style="background: #10b981; color: #10b981;"></div>
+      <div class="mat-label"><strong>Cargador Qi Integrado:</strong> Superficie de carga rápida en el tablero.</div>
+    </div>
+
+    <div class="mat-item">
+      <div class="mat-color-dot" style="background: #ef4444; color: #ef4444;"></div>
+      <div class="mat-label"><strong>Canalización Interna:</strong> Rieles ocultos bajo la melamina y bajada por la pata delantera derecha.</div>
+    </div>
+
+    <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; gap: 10px;">
+      <span class="rgb-corner-badge">Ambiental RGB</span>
+      <span style="font-size: 11px; color: #64748b;">Iluminación sutil trasera</span>
+    </div>
+  </div>
+
+  <div id="info-panel" class="glass-card">
+    Arrastra para rotar | Clic derecho para mover | Rueda para zoom
+  </div>
+
+  <div id="canvas-container"></div>
+
+  <script>
+    let scene, camera, renderer, controls;
+    let isXrayActive = false;
+    let isQuakeActive = false;
+    let quakeTime = 0;
+
+    let topMesh, frontRightLeg, storageMeshes = [];
+    let woodMatOriginal, metalPTRMatOriginal, storageMatOriginal;
+    let xrayWoodMat, xrayMetalMat, xrayStorageMat;
+    let cableGroup;
+
+    let chargingLedMat;
+    let rgbLightMesh, rgbPointLight;
+
+    const originalCamPos = new THREE.Vector3();
+    const originalTarget = new THREE.Vector3();
+
+    init();
+    animate();
+
+    function init() {
+      const container = document.getElementById('canvas-container');
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0b0c10);
+      scene.fog = new THREE.FogExp2(0x0b0c10, 0.035);
+
+      camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100);
+      camera.position.set(2.4, 2.0, 2.8);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.1;
+      container.appendChild(renderer.domElement);
+
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.maxPolarAngle = Math.PI / 2 + 0.02;
+      controls.minDistance = 1.0;
+      controls.maxDistance = 5.5;
+      controls.target.set(0, 0.45, 0);
+
+      setupLighting();
+      createRoom();
+      createDesk();
+
+      window.addEventListener('resize', onWindowResize);
+      document.getElementById('toggle-xray-btn').addEventListener('click', toggleXrayMode);
+      document.getElementById('earthquake-btn').addEventListener('click', toggleEarthquake);
+    }
+
+    function setupLighting() {
+      const ambientLight = new THREE.AmbientLight(0xf8fafc, 0.4);
+      scene.add(ambientLight);
+
+      // Luz principal suave estilo estudio
+      const mainLight = new THREE.DirectionalLight(0xfff7ed, 1.2);
+      mainLight.position.set(4, 5, 3);
+      mainLight.castShadow = true;
+      mainLight.shadow.mapSize.width = 2048;
+      mainLight.shadow.mapSize.height = 2048;
+      mainLight.shadow.bias = -0.00005;
+      scene.add(mainLight);
+
+      // Luz de relleno azulada elegante
+      const fillLight = new THREE.DirectionalLight(0x38bdf8, 0.4);
+      fillLight.position.set(-4, 3, -2);
+      scene.add(fillLight);
+
+      // Luz trasera de acento (Rim light)
+      const rimLight = new THREE.DirectionalLight(0x818cf8, 0.6);
+      rimLight.position.set(0, 2, -4);
+      scene.add(rimLight);
+    }
+
+    function createRoom() {
+      // Suelo oscuro arquitectónico
+      const floorGeo = new THREE.PlaneGeometry(12, 12);
+      const floorMat = new THREE.MeshStandardMaterial({ 
+        color: 0x111318, 
+        roughness: 0.6, 
+        metalness: 0.2 
+      });
+      const floor = new THREE.Mesh(floorGeo, floorMat);
+      floor.rotation.x = -Math.PI / 2;
+      floor.receiveShadow = true;
+      scene.add(floor);
+    }
+
+    function createDesk() {
+      const deskGroup = new THREE.Group();
+
+      // Materiales Modernos
+      woodMatOriginal = new THREE.MeshStandardMaterial({ 
+        color: 0x241c15, 
+        roughness: 0.35,
+        metalness: 0.05
+      });
+
+      metalPTRMatOriginal = new THREE.MeshStandardMaterial({ 
+        color: 0x1e293b, 
+        metalness: 0.85, 
+        roughness: 0.25 
+      });
+
+      storageMatOriginal = new THREE.MeshStandardMaterial({ 
+        color: 0x1a140e, 
+        roughness: 0.4 
+      });
+
+      // Materiales Rayos X Neón
+      xrayWoodMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, transparent: true, opacity: 0.18, roughness: 0.1 });
+      xrayMetalMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.15, metalness: 0.9 });
+      xrayStorageMat = new THREE.MeshStandardMaterial({ color: 0x0369a1, transparent: true, opacity: 0.18, roughness: 0.1 });
+
+      const tableWidth = 1.20;
+      const tableDepth = 0.68;
+      const tableHeight = 0.75;
+      const topThickness = 0.035;
+      const legRadius = 0.022;
+
+      // Tablero Principal Biselado
+      const topGeo = new THREE.BoxGeometry(tableWidth, topThickness, tableDepth);
+      topMesh = new THREE.Mesh(topGeo, woodMatOriginal);
+      topMesh.position.y = tableHeight - topThickness / 2;
+      topMesh.castShadow = true;
+      topMesh.receiveShadow = true;
+      deskGroup.add(topMesh);
+
+      // Esquina RGB
+      createRGBCorner(deskGroup, tableWidth, tableDepth, tableHeight, topThickness);
+
+      // Módulos de almacenamiento limpios
+      const wallThickness = 0.018;
+      const cubicleDepth = tableDepth - 0.06;
+      const underTopY = tableHeight - topThickness;
+
+      // Módulo Vertical Mochila (Derecha)
+      const bagWidth = 0.34;
+      const bagHeight = 0.52; 
+      const bagX = (tableWidth / 2) - (bagWidth / 2) - 0.04;
+      const bagCenterY = underTopY - (bagHeight / 2);
+
+      const bagRightWall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, bagHeight, cubicleDepth), storageMatOriginal);
+      bagRightWall.position.set(bagX + bagWidth / 2 - wallThickness / 2, bagCenterY, 0);
+
+      const bagMiddleWall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, bagHeight, cubicleDepth), storageMatOriginal);
+      bagMiddleWall.position.set(bagX - bagWidth / 2 + wallThickness / 2, bagCenterY, 0);
+
+      const bagBottomWall = new THREE.Mesh(new THREE.BoxGeometry(bagWidth, wallThickness, cubicleDepth), storageMatOriginal);
+      bagBottomWall.position.set(bagX, bagCenterY - bagHeight / 2 + wallThickness / 2, 0);
+
+      const bagBackWall = new THREE.Mesh(new THREE.BoxGeometry(bagWidth, bagHeight, wallThickness), storageMatOriginal);
+      bagBackWall.position.set(bagX, bagCenterY, -cubicleDepth / 2 + wallThickness / 2);
+
+      // Módulo Horizontal Libros (Izquierda)
+      const leftEdgeX = -(tableWidth / 2) + 0.04; 
+      const rightEdgeX = bagX - (bagWidth / 2);    
+      const bookWidth = rightEdgeX - leftEdgeX;
+      const bookHeight = 0.18;                     
+      const bookX = leftEdgeX + (bookWidth / 2);
+      const bookCenterY = underTopY - (bookHeight / 2);
+
+      const bookLeftWall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, bookHeight, cubicleDepth), storageMatOriginal);
+      bookLeftWall.position.set(bookX - bookWidth / 2 + wallThickness / 2, bookCenterY, 0);
+
+      const bookBottomWall = new THREE.Mesh(new THREE.BoxGeometry(bookWidth, wallThickness, cubicleDepth), storageMatOriginal);
+      bookBottomWall.position.set(bookX, bookCenterY - bookHeight / 2 + wallThickness / 2, 0);
+
+      const bookBackWall = new THREE.Mesh(new THREE.BoxGeometry(bookWidth, bookHeight, wallThickness), storageMatOriginal);
+      bookBackWall.position.set(bookX, bookCenterY, -cubicleDepth / 2 + wallThickness / 2);
+
+      storageMeshes = [bagRightWall, bagMiddleWall, bagBottomWall, bagBackWall, bookLeftWall, bookBottomWall, bookBackWall];
+      storageMeshes.forEach(part => {
+        part.castShadow = true;
+        part.receiveShadow = true;
+        deskGroup.add(part);
+      });
+
+      // Patas Slim PTR
+      const legHeight = tableHeight - topThickness;
+      const legGeo = new THREE.CylinderGeometry(legRadius, legRadius, legHeight, 24);
+
+      const xPos = tableWidth / 2 - 0.05;
+      const zPos = tableDepth / 2 - 0.05;
+
+      const legPositions = [
+        [-xPos, legHeight / 2, -zPos], 
+        [-xPos, legHeight / 2, zPos],  
+        [xPos, legHeight / 2, -zPos]   
+      ];
+
+      legPositions.forEach(pos => {
+        const leg = new THREE.Mesh(legGeo, metalPTRMatOriginal);
+        leg.position.set(...pos);
+        leg.castShadow = true;
+        leg.receiveShadow = true;
+        deskGroup.add(leg);
+      });
+
+      frontRightLeg = new THREE.Mesh(legGeo, metalPTRMatOriginal);
+      frontRightLeg.position.set(xPos, legHeight / 2, zPos);
+      frontRightLeg.castShadow = true;
+      frontRightLeg.receiveShadow = true;
+      deskGroup.add(frontRightLeg);
+
+      // Cables y Setup
+      createInternalCableSystem(deskGroup, xPos, zPos, legHeight, tableHeight);
+      createComputerSetup(deskGroup, tableHeight);
+      createWirelessPowerBankPad(deskGroup, tableHeight);
+      createStorageItems(
+        deskGroup, 
+        bookX, 
+        bookCenterY - bookHeight / 2 + wallThickness, 
+        bagX, 
+        bagCenterY - bagHeight / 2 + wallThickness   
+      );
+
+      scene.add(deskGroup);
+    }
+
+    function createRGBCorner(deskGroup, tableWidth, tableDepth, tableHeight, topThickness) {
+      const cornerX = -(tableWidth / 2) + 0.06;
+      const cornerZ = -(tableDepth / 2) + 0.06;
+      const cornerY = tableHeight - topThickness / 2;
+
+      const rgbGeo = new THREE.BoxGeometry(0.12, 0.037, 0.12);
+      const rgbMat = new THREE.MeshStandardMaterial({ 
+        color: 0xec4899, 
+        emissive: 0xec4899, 
+        emissiveIntensity: 0.8,
+        roughness: 0.1
+      });
+
+      rgbLightMesh = new THREE.Mesh(rgbGeo, rgbMat);
+      rgbLightMesh.position.set(cornerX, cornerY, cornerZ);
+      deskGroup.add(rgbLightMesh);
+
+      rgbPointLight = new THREE.PointLight(0xec4899, 0.6, 1.0);
+      rgbPointLight.position.set(cornerX, cornerY + 0.05, cornerZ);
+      deskGroup.add(rgbPointLight);
+    }
+
+    function createInternalCableSystem(deskGroup, x, z, legHeight, tableHeight) {
+      cableGroup = new THREE.Group();
+      cableGroup.visible = false;
+
+      const powerCableMat = new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0xd97706, emissiveIntensity: 0.8 }); 
+      const dataCableMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.8 });  
+
+      const powerCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-0.08, tableHeight - 0.02, -0.18),
+        new THREE.Vector3(x - 0.01, tableHeight - 0.02, z - 0.02),
+        new THREE.Vector3(x - 0.01, legHeight * 0.7, z - 0.02),
+        new THREE.Vector3(x - 0.01, legHeight * 0.3, z - 0.02),
+        new THREE.Vector3(x - 0.05, 0.01, z)
+      ]);
+
+      const powerTubeGeo = new THREE.TubeGeometry(powerCurve, 32, 0.006, 8, false);
+      const powerCable = new THREE.Mesh(powerTubeGeo, powerCableMat);
+      cableGroup.add(powerCable);
+
+      const dataCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-0.04, tableHeight - 0.02, -0.18),
+        new THREE.Vector3(x + 0.01, tableHeight - 0.02, z - 0.01),
+        new THREE.Vector3(x + 0.01, legHeight * 0.6, z - 0.01),
+        new THREE.Vector3(x + 0.01, legHeight * 0.2, z - 0.01),
+        new THREE.Vector3(x + 0.05, 0.01, z + 0.02)
+      ]);
+
+      const dataTubeGeo = new THREE.TubeGeometry(dataCurve, 32, 0.004, 8, false);
+      const dataCable = new THREE.Mesh(dataTubeGeo, dataCableMat);
+      cableGroup.add(dataCable);
+
+      deskGroup.add(cableGroup);
+    }
+
+    function createComputerSetup(deskGroup, tableHeight) {
+      const compGroup = new THREE.Group();
+      compGroup.position.set(-0.08, tableHeight, -0.05);
+
+      const aluminiumMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.9, roughness: 0.2 });
+      const darkGlassMat = new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.1 });
+      const screenOnMat = new THREE.MeshStandardMaterial({ color: 0x020617, emissive: 0x0369a1, emissiveIntensity: 0.5, roughness: 0.1 });
+
+      // Monitor Minimalista Ultradelgado
+      const baseGeo = new THREE.CylinderGeometry(0.09, 0.09, 0.005, 32);
+      const base = new THREE.Mesh(baseGeo, aluminiumMat);
+      base.position.set(0, 0.0025, -0.1);
+      base.castShadow = true;
+      compGroup.add(base);
+
+      const standGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.20, 16);
+      const stand = new THREE.Mesh(standGeo, aluminiumMat);
+      stand.position.set(0, 0.10, -0.14);
+      stand.castShadow = true;
+      compGroup.add(stand);
+
+      const monitorGeo = new THREE.BoxGeometry(0.56, 0.32, 0.008);
+      const monitor = new THREE.Mesh(monitorGeo, darkGlassMat);
+      monitor.position.set(0, 0.24, -0.135);
+      monitor.castShadow = true;
+      compGroup.add(monitor);
+
+      const displayGeo = new THREE.PlaneGeometry(0.54, 0.30);
+      const display = new THREE.Mesh(displayGeo, screenOnMat);
+      display.position.set(0, 0.24, -0.13);
+      compGroup.add(display);
+
+      // Teclado Estilo Minimalista (Sin cables)
+      const kbMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.4, metalness: 0.5 });
+      const kbGeo = new THREE.BoxGeometry(0.32, 0.008, 0.11);
+      const keyboard = new THREE.Mesh(kbGeo, kbMat);
+      keyboard.position.set(-0.02, 0.004, 0.12);
+      keyboard.castShadow = true;
+      compGroup.add(keyboard);
+
+      // Mousepad
+      const padGeo = new THREE.BoxGeometry(0.20, 0.001, 0.22);
+      const padMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.8 });
+      const pad = new THREE.Mesh(padGeo, padMat);
+      pad.position.set(0.28, 0.0005, 0.12);
+      pad.receiveShadow = true;
+      compGroup.add(pad);
+
+      // Ratón Ergonómico Inalámbrico
+      const mouseGeo = new THREE.BoxGeometry(0.05, 0.022, 0.09);
+      const mouseMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.3, metalness: 0.6 });
+      const mouse = new THREE.Mesh(mouseGeo, mouseMat);
+      mouse.position.set(0.28, 0.011, 0.12);
+      mouse.rotation.y = -0.08;
+      mouse.castShadow = true;
+      compGroup.add(mouse);
+
+      deskGroup.add(compGroup);
+    }
+
+    function createWirelessPowerBankPad(deskGroup, tableHeight) {
+      const chargerGroup = new THREE.Group();
+      chargerGroup.position.set(-0.42, tableHeight, 0.12);
+
+      const ringGeo = new THREE.CylinderGeometry(0.055, 0.055, 0.002, 32);
+      const ringMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.2 });
+      const chargerBase = new THREE.Mesh(ringGeo, ringMat);
+      chargerBase.position.y = 0.001;
+      chargerBase.receiveShadow = true;
+      chargerGroup.add(chargerBase);
+
+      const ledGeo = new THREE.RingGeometry(0.04, 0.048, 32);
+      chargingLedMat = new THREE.MeshBasicMaterial({ color: 0x10b981, side: THREE.DoubleSide });
+      const ledRing = new THREE.Mesh(ledGeo, chargingLedMat);
+      ledRing.rotation.x = -Math.PI / 2;
+      ledRing.position.y = 0.0022;
+      chargerGroup.add(ledRing);
+
+      // Smartphone Moderno
+      const phoneGroup = new THREE.Group();
+      phoneGroup.position.set(0, 0.002, 0);
+
+      const bodyGeo = new THREE.BoxGeometry(0.07, 0.007, 0.14);
+      const bodyMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.9, roughness: 0.1 });
+      const phoneBody = new THREE.Mesh(bodyGeo, bodyMat);
+      phoneBody.position.y = 0.0035;
+      phoneBody.castShadow = true;
+      phoneGroup.add(phoneBody);
+
+      const screenGeo = new THREE.PlaneGeometry(0.066, 0.134);
+      const phoneScreenMat = new THREE.MeshStandardMaterial({ 
+        color: 0x022c22, 
+        emissive: 0x059669, 
+        emissiveIntensity: 0.5,
+        roughness: 0.1 
+      });
+      const phoneScreen = new THREE.Mesh(screenGeo, phoneScreenMat);
+      phoneScreen.rotation.x = -Math.PI / 2;
+      phoneScreen.position.y = 0.0071;
+      phoneGroup.add(phoneScreen);
+
+      chargerGroup.add(phoneGroup);
+      deskGroup.add(chargerGroup);
+    }
+
+    function createStorageItems(deskGroup, bookX, bookFloorY, bagX, bagFloorY) {
+      const contentsGroup = new THREE.Group();
+
+      // Mochila Minimalista
+      const backpackGroup = new THREE.Group();
+      const bagMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 }); 
+
+      const bodyGeo = new THREE.BoxGeometry(0.22, 0.40, 0.16);
+      const body = new THREE.Mesh(bodyGeo, bagMat);
+      body.castShadow = true;
+      backpackGroup.add(body);
+
+      backpackGroup.position.set(bagX, bagFloorY + 0.20, 0);
+      contentsGroup.add(backpackGroup);
+
+      // Libros / Libretas Minimalistas
+      const notebookColors = [0x0284c7, 0x475569, 0x0f172a];
+      let currentY = bookFloorY + 0.01;
+
+      for (let i = 0; i < 3; i++) {
+        const nbMat = new THREE.MeshStandardMaterial({ color: notebookColors[i], roughness: 0.5 });
+        const nbGeo = new THREE.BoxGeometry(0.26, 0.025, 0.32);
+        const notebook = new THREE.Mesh(nbGeo, nbMat);
+        
+        notebook.position.set(bookX, currentY, 0);
+        notebook.castShadow = true;
+        notebook.receiveShadow = true;
+        
+        contentsGroup.add(notebook);
+        currentY += 0.027;
+      }
+
+      deskGroup.add(contentsGroup);
+    }
+
+    function toggleXrayMode() {
+      isXrayActive = !isXrayActive;
+      const btn = document.getElementById('toggle-xray-btn');
+      const btnText = document.getElementById('xray-btn-text');
+
+      if (isXrayActive) {
+        btn.classList.add('active');
+        btnText.textContent = "Ocultar Ruta de Cables";
+
+        topMesh.material = xrayWoodMat;
+        frontRightLeg.material = xrayMetalMat;
+        storageMeshes.forEach(mesh => mesh.material = xrayStorageMat);
+        cableGroup.visible = true;
+      } else {
+        btn.classList.remove('active');
+        btnText.textContent = "Ver Ruta de Cables (Modo Rayos X)";
+
+        topMesh.material = woodMatOriginal;
+        frontRightLeg.material = metalPTRMatOriginal;
+        storageMeshes.forEach(mesh => mesh.material = storageMatOriginal);
+        cableGroup.visible = false;
+      }
+    }
+
+    function toggleEarthquake() {
+      isQuakeActive = !isQuakeActive;
+      const btn = document.getElementById('earthquake-btn');
+
+      if (isQuakeActive) {
+        btn.classList.add('active');
+        originalCamPos.copy(camera.position);
+        originalTarget.copy(controls.target);
+      } else {
+        btn.classList.remove('active');
+        camera.position.copy(originalCamPos);
+        controls.target.copy(originalTarget);
+      }
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const time = Date.now() * 0.0015;
+
+      // Animación Iluminación RGB Esquina
+      if (rgbLightMesh && rgbPointLight) {
+        const hue = (time * 0.15) % 1;
+        const color = new THREE.Color().setHSL(hue, 0.8, 0.5);
+        rgbLightMesh.material.color.copy(color);
+        rgbLightMesh.material.emissive.copy(color);
+        rgbPointLight.color.copy(color);
+      }
+
+      // Animación Carga Verde Qi
+      if (chargingLedMat) {
+        chargingLedMat.opacity = 0.5 + Math.sin(time * 3) * 0.5;
+      }
+
+      // Simulación de Sismo
+      if (isQuakeActive) {
+        quakeTime += 0.35;
+        const intensity = 0.035;
+
+        camera.position.x = originalCamPos.x + (Math.sin(quakeTime * 1.6) * intensity) + (Math.cos(quakeTime * 3.1) * intensity * 0.5);
+        camera.position.y = originalCamPos.y + (Math.cos(quakeTime * 2.2) * intensity);
+        camera.position.z = originalCamPos.z + (Math.sin(quakeTime * 2.7) * intensity);
+
+        controls.target.x = originalTarget.x + (Math.cos(quakeTime * 2.0) * intensity * 0.5);
+        controls.target.y = originalTarget.y + (Math.sin(quakeTime * 2.4) * intensity * 0.5);
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+  </script>
+</body>
+</html>
